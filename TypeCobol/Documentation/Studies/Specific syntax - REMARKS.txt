@@ -1,4 +1,58 @@
 ﻿
+** GENERIC EXTENSION MECHANISM TO ANALYZE AN EMBEDDED LANGUAGE IN COMMENTS **
+
+1. Handle a group of successive comment lines as a single continued token.
+
+2. Treat FloatingComment & CommentLine tokens like ExecStatementText tokens : they could be fragments of text containing an embedded language
+- add the following properties to these 3 token types :
+  EmbeddedLanguage.Type, EmbeddedLanguage.Tokens, EmbeddedLanguage.CodeElements, EmbeddedLanguage.Scope, EmbeddedLanguage.Diagnostics
+- for ExecStatementText tokens, the EmbeddedLanguage property should never be null, and its Type property should be set by the preceding ExecTranslatorName
+- for comments tokens, the EmbeddedLanguage property may often be null, and the compiler extension must have a way to detect which language is encoded in the comment text
+
+3. Enable compiler extensions to scan, parse & model the contents of these tokens :
+- first call these compiler extensions each time a Comment or ExecStatementText token is created by the Scanner
+- the compiler extension should detect an embedded language, and at least compute the EmbeddedLanguage.Tokens property
+- EmbeddedLanguage.Syntax, EmbeddedLanguage.CodeModel should be analyzed at a further stage if the analysis is too expensive to be synchronous with key presses
+
+4. The compiler extensions DO NOT particpate in the MultilineScanState mechanism of the Scanner
+  => LIMITATION : the language embedded in comments must have the following property : 
+     "each comment token can be parsed independently of the previous ones" (like CodeElements)
+It is also not allowed to mix different languages int the same comment token.
+
+5. The preprocessor calls the compiler extension each time it sees a new token with a non null EmbeddedLanguage property :
+- the compiler extension can compute the EmbeddedLanguage.CodeElements & EmbeddedLanguage.Scope properties at this stage
+- EmbeddedLanguage.Scope is an enumeration with two possible values : Document, NextToken
+ . Document => the comment token is added to an internal immutable set (no order) maintained at the document level, which is always passed as an argument to the compiler extension
+ . NextToken => the comment token is linked to a real token, see below
+
+6. The preprocessor has a new responsibility :
+- whitespace and comment tokens are considered "syntax trivia"
+- they are linked to the other "real" syntax tokens as follows
+  . all trivia tokens preceding a "real" syntax token are added to its "LeadingTrivia" property
+  . all trivia tokens following a "real" syntax token until the next "real" token or the end of line are added to its "TrailingTrivia" property
+  . the HasStructuredTrivia property of the "real" token is set to true each time an embedded language statement is found in leading or trailing trivia
+- the preprocessor must maintain these list correct in the face of any change signaled on the source tokens lines
+- leading and trailing trivia are computed before COPY and REPLACE directives processing
+  . they do not span documents
+  . the statements embedded in comments applied to a replaced token (or token group) can be found in the sourceTokens property
+- this new reponsibility has similar requirements with the existing mechanism to group source tokens into CompilerDirectivesTokens
+
+7. The compiler extensions are then called three times in the preprocessor, when they can OPTIONNALY :
+- instanciate an alternate TokensLinesIterator when analyzing compiler directives
+- instanciate derived classes of all compiler directives when called from the CompilerDirectiveBuilder
+- instanciate an alternate CopyTokensLinesIterator or ReplaceTokensLinesIterator when asked foir a tokens iterator by the parser
+
+8. The parser calls the compiler extension each time it builds a new CodeElement corresponding to an ExecStatement :
+- the compiler extension can compute the EmbeddedLanguage.CodeElements & EmbeddedLanguage.Scope properties at this stage
+
+8. The TypeChecker calls the compiler extension a last time at the very end with the complete code model :
+- the compiler extension can find EmbeddedLangage properties in the Leading trivia of significant tokens
+- it can then walk the complete tree to resolve 
+
+-------------------------------
+0. Remarks syntax documentation
+-------------------------------
+
 1. utilisation des remarks, 
 
        IDENTIFICATION division.
@@ -358,26 +412,20 @@ Prendre un suffixe si possible explicite (autant que possible sur 1 caractère),
 1.2 REMARKS syntax
 ------------------
 
-** SCANNER **
+** SPECIFIC EXTENSION FOR REMARKS SYNTAX IN COMMENTS **
 
-Search for a '*REMARKS' keyword starting in column 7, like we already search for '*CBL'.
-When the keyword is found, enter a special state :
-- * in column 7 does not mark a full comment line anymore
-- * in column 7 and all following chars until the first space char are grouped as a comment TOKEN
-- the rest of the line is scanned like a source code line
-Exit this special state when :
-- a period separator token is encountered
-- a line without * in column 7 is encountered
-=> produce a pseudo token of type 'END-REMARKS' without underlying chars when either condition is found
+1. Language detection : 
+- CommentLine token
+- text starts with "REMARKS. "
 
-** PREPROCESSOR **
+2. Scan the complete text (token continued on several lines) :
+- search for words containing only alphanumeric characters 0-9A-Za-z, AND starting with Y => UserDefinedWords
+- any other character string between these words => FloatingComment (including the initial marker "REMARKS. ") 
 
-Add a new type of compiler directive, with the following grammar :
-'*REMARKS' ( 'COPY' '=' ( UserDefinedName | ( '(' UserDefinedName+ ')' ) ) )+ '.'? 'END-REMARKS'
-
-The compiler directive object stores a list of user defined names, with two types :
-- text names (at most 7 characters)
-- text names with an alphanumeric suffix 0-9A-Z (8 characters)
+3. Iterate on the UserDefinedWords, and distingish two types of objects stored in EmbeddedLanguage.CodeModel :
+- at most 7 characters => text names
+- 8 characters with last character 0-9A-Z => text name + alphanumeric suffix 
+- else => register a syntax error in EmbeddedLanguage.Diagnostics
 
 ----------------------------------
 2.1 COPY from REMARKS code samples
@@ -440,15 +488,22 @@ The compiler directive object stores a list of user defined names, with two type
 2.2 COPY directive extended model
 ---------------------------------
 
-When a COPY directive is built, check if the textName is listed in a previous REMARKS directive ?
-If it is :
-- in case of a simple textName
-  . add a flag "Remove 01 level" on the COPY directive
-- in case of a textName + one character suffix
-  . set textName without the suffix on the COPY directive
-  . add a flag "Remove 01 level" on the COPY directive
-  . add a flag "Insert suffix char before the first '-' in all user defined words", and store the suffix char
+1. Define a derived class for CopyCompilerDirective :
+- add a boolean property RemoveLevel01
+- add a boolean property InsertSuffixCharInDataNames
+- add a string property SuffixSearchPattern
+- add a char property SuffixChar
 
+2. Use the compiler extension to override the instanciation of COPY directives 
+- lookup the textName in the set of Document-level REMARKS comment tokens
+- if the textName was mentioned in a REMARKS statement :
+- in case of a simple textName
+  . set RemoveLevel01 to true on the derived COPY directive
+- in case of a textName + one character suffix
+  . set all properties of the derived COPY directive :
+    SuffixSearchPattern = chars 5-7 of the textName + '-'
+	SuffixChar = char 8 of the textName
+  
 ------------------------------
 3.1 COPY contents code samples
 ------------------------------
@@ -554,15 +609,23 @@ If it is :
 2.2 COPY iterator extended behavior
 -----------------------------------
 
-* Flag "Remove 01 level" on the COPY directive
+1. Use the compiler extension to override the instanciation of COPY iterator. 
+In the derived iterator :
+- cast CompilerDirective to the more specific derived class
+
+* Flag RemoveLevel01 on the COPY directive
 
 When encountering the first '01' numeric literal in the imported document :
 - skip all tokens in the imported document until the next period separator
 - return the first token after this period separator
 
-* Flag "Insert suffix char before the first '-' in all user defined words"
+1. Use the compiler extension to override the instanciation of the REPLACE iterator associated with the extend COPY directive.
+(flag InsertSuffixCharInDataNames interpreted as a REPLACING clause)
+In the derived iterator :
+
+* Flag InsertSuffixCharInDataNames
 
 Create a new InsertSuffixIterator, executed before any replacing clause.
 Each time this iterator finds a UserDefinedName in the imported document :
-- check if the name contains a '-' char
+- check if the name contains the SuffixSearchPattern (last three characters of the copy name + '-')
 - if it does, create a ReplacedToken by inserting the suffix char before the '-' in the original text
