@@ -423,7 +423,7 @@ class WriteTypeConsistencyChecker: NodeListener {
 				var node = (DataDescription)GetSymbol(table, qname);
 				entry = node.CodeElement();
 			} else throw new NotImplementedException(data.CodeElement.GetType().Name);
-			if (entry.CustomType == null) return entry.DataType;//not a custom type
+			if (entry.UserDefinedDataType == null) return entry.DataType;//not a custom type
 		}
         ITypedNode typed = symbol as ITypedNode;
 		if (typed == null) return null;// symbol untyped
