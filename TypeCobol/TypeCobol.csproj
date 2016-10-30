@@ -402,6 +402,7 @@
     <Content Include="Documentation\Studies\Lexical study.txt" />
     <Content Include="Documentation\Studies\Parser rules ordering .txt" />
     <Content Include="Documentation\Studies\Specific syntax - REMARKS.txt" />
+    <Content Include="Documentation\Studies\Syntax tree study.txt" />
     <Content Include="Documentation\Studies\TypeCobolStats_counters.txt" />
     <Content Include="Documentation\Studies\TypeCobolStats_modelForCopy.txt" />
     <Content Include="Documentation\Studies\TypeCobolStats_modelForProgram.txt" />
