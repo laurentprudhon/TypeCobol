@@ -140,6 +140,7 @@
     <Compile Include="Compiler\CodeElements\Statement\SubstractStatement.cs" />
     <Compile Include="Compiler\CodeElements\CodeElementEnd.cs" />
     <Compile Include="Compiler\CodeModel\Memory.cs" />
+    <Compile Include="Compiler\CodeModel\SymbolTable2.cs" />
     <Compile Include="Compiler\CodeModel\SyntaxTree.cs" />
     <Compile Include="Compiler\CodeModel\SymbolUser.cs" />
     <Compile Include="Compiler\Diagnostics\Cobol85Checkers.cs" />

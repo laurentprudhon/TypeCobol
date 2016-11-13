@@ -572,12 +572,12 @@ namespace TypeCobol.Compiler.Parser
 // [COBOL 2002]
         internal SymbolDefinition CreateDataTypeNameDefinition(CodeElementsParser.DataNameDefinitionContext context)
         {
-            return CreateSymbolDefinition(context.symbolDefinition4(), SymbolType.DataName);
+            return CreateSymbolDefinition(context.symbolDefinition4(), SymbolType.DataTypeName);
         }
 
         internal SymbolReference CreateDataTypeNameReference(CodeElementsParser.DataTypeNameReferenceContext context)
         {
-            return CreateSymbolReference(context.symbolReference12(), SymbolType.DataName);
+            return CreateSymbolReference(context.symbolReference12(), SymbolType.DataTypeName);
         }
 // [/COBOL 2002]
 
