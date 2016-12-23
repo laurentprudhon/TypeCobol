@@ -116,6 +116,7 @@
     <Compile Include="$(TC_AntlrGeneratedFiles)\TypeCobolCodeElementsVisitor.cs">
       <Link>Compiler\Parser\Generated\TypeCobolCodeElementsVisitor.cs</Link>
     </Compile>
+    <Compile Include="Compiler\AntlrUtils\AntlrPerformanceProfiler.cs" />
     <Compile Include="Compiler\AntlrUtils\CobolErrorStrategy.cs" />
     <Compile Include="Compiler\AntlrUtils\ParserDiagnosticErrorListener.cs" />
     <Compile Include="Compiler\AntlrUtils\LineAwareParser.cs" />

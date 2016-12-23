@@ -5,6 +5,7 @@ using System.Text;
 using TypeCobol.Compiler;
 using TypeCobol.Compiler.Directives;
 using TypeCobol.Compiler.File;
+using TypeCobol.Compiler.Parser;
 using TypeCobol.Compiler.Text;
 
 namespace TypeCobol.Tools.CommandLine
@@ -21,7 +22,7 @@ namespace TypeCobol.Tools.CommandLine
             string currentDirectory = Directory.GetCurrentDirectory();
             string projectRootPath = currentDirectory.Substring(0, currentDirectory.IndexOf(@"\TypeCobol\") + 11);
 
-            string sourcePath = projectRootPath + @"TypeCobol.Test\Samples\EI Cobol samples\EI-Production";
+            string sourcePath = @"D:\Users\Laurent\OneDrive\Dev\Visual Studio 2012\Projects\TypeCobol\TypeCobol.Test\Samples\EI Cobol samples\EI-Production";
             string[] programExtensions = { "*.PGM" };
             string[] copyExtensions = { "*.CPY" };
 
@@ -30,14 +31,16 @@ namespace TypeCobol.Tools.CommandLine
             TypeCobolOptions compilerOptions = new TypeCobolOptions();
             CompilationProject project = new CompilationProject("samples", sourcePath, programExtensions.Concat(copyExtensions).ToArray(),
                 docFormat.Encoding, docFormat.EndOfLineDelimiter, docFormat.FixedLineLength, docFormat.ColumnsLayout, compilerOptions);
-            
+
             // Iterate over all programs in the source directory
+            int pgmCount = 0;
             foreach (string programExtension in programExtensions)
             {
                 foreach (string filePath in Directory.EnumerateFiles(sourcePath, programExtension))
                 {
                     // Compile program
                     string textName = Path.GetFileNameWithoutExtension(filePath);
+                    if (textName == "IDCPK02") continue;
                     Console.Write(textName + " ... ");
                     try
                     {
@@ -50,7 +53,17 @@ namespace TypeCobol.Tools.CommandLine
                         Console.WriteLine("error :");
                         Console.WriteLine(e.Message);
                     }
+                    pgmCount++;
+                    if(pgmCount > 10)
+                    {
+                        break;
+                    }
                 }                
+            }
+
+            using (var sw = new StreamWriter(Environment.GetFolderPath(Environment.SpecialFolder.Desktop)+@"\cobolstats.txt"))
+            {
+                CodeElementsParserStep.AntlrPerformanceProfiler.WriteInfoToResultFile(sw);
             }
 
             /*

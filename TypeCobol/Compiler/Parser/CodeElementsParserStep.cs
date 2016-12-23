@@ -52,6 +52,9 @@ namespace TypeCobol.Compiler.Parser
             public bool StopTokenIsFirstTokenOfTheLine { get; set; }
         }
 
+        // When not null, optionnaly used to gather Antlr performance profiling information
+        public static AntlrPerformanceProfiler AntlrPerformanceProfiler;
+        
         /// <summary>
         /// Incremental parsing of a set of processed tokens lines changes
         /// </summary>
@@ -103,8 +106,20 @@ namespace TypeCobol.Compiler.Parser
             // Init parser
             TokensLinesTokenStream tokenStream = new TokensLinesTokenStream(tokenSource, Token.CHANNEL_SourceTokens);
             CodeElementsParser cobolParser = new CodeElementsParser(tokenStream);
-            // REVERT TO STD PARSER ==> TracingCobolParser cobolParser = new TracingCobolParser(tokenStream);
             
+            // Optionnaly activate Antlr Parser performance profiling
+            // WARNING : use this in a single-treaded context only (uses static field)          
+            // => uncomment one line below to activate Antlr profiling
+            if (AntlrPerformanceProfiler == null) AntlrPerformanceProfiler = new AntlrPerformanceProfiler(cobolParser);
+            if (AntlrPerformanceProfiler != null)
+            {
+                // Replace the generated parser by a subclass which traces all rules invocations
+                cobolParser = new CodeElementsTracingParser(tokenStream);
+ 
+                var tokensCountIterator = ProcessedTokensDocument.GetProcessedTokensIterator(textSourceInfo, documentLines);                
+                AntlrPerformanceProfiler.BeginParsingFile(textSourceInfo, tokensCountIterator);
+            }
+
             // Customize error recovery strategy
             IAntlrErrorStrategy cobolErrorStrategy = new CodeElementErrorStrategy();
             cobolParser.ErrorHandler = cobolErrorStrategy;
@@ -146,7 +161,9 @@ namespace TypeCobol.Compiler.Parser
                 // Try to parse code elements :
                 // - starting with the current parse section Start token
                 // - ending with the current parse section Stop token
+                if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.BeginParsingSection();
                 var codeElementsParseTree = cobolParser.cobolCodeElements();
+                if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingSection(codeElementsParseTree.codeElement()!=null ? codeElementsParseTree.codeElement().Length : 0);
 
                 // If the parse tree is not empty
                 if (codeElementsParseTree.codeElement() != null && codeElementsParseTree.codeElement().Length > 0)
@@ -244,6 +261,8 @@ namespace TypeCobol.Compiler.Parser
                 }
             }
             while (tokenStream.La(1) >= 0);
+
+            if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingFile(cobolParser.ParseInfo.DecisionInfo, (int)(cobolParser.ParseInfo.GetTotalTimeInPrediction() / 1000000));
 
             return codeElementsLinesChanges;
         }

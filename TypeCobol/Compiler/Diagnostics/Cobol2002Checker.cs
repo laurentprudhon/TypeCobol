@@ -33,7 +33,7 @@ class TypeDefinitionEntryChecker: CodeElementListener {
 		}
 		if (typedef.Picture != null && typedef.DataType.IsStrong) {
 			string message = "Elementary TYPEDEF cannot be STRONG";
-			string rulestack = new RuleStackBuilder().GetRuleStack(context.cobol2002TypedefClause());
+			string rulestack = RuleStackBuilder.GetRuleStack(context.cobol2002TypedefClause());
 			DiagnosticUtils.AddError(typedef, message, ParseTreeUtils.GetFirstToken(context.cobol2002TypedefClause().STRONG()), rulestack);
 		}
 		if (typedef.IsExternal) {
