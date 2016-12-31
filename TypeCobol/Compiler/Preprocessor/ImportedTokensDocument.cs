@@ -14,11 +14,12 @@ namespace TypeCobol.Compiler.Preprocessor
     /// </summary>
     public class ImportedTokensDocument
     {
-        public ImportedTokensDocument(CopyDirective copyDirective, ProcessedTokensDocument importedDocumentSource)
+        public ImportedTokensDocument(CopyDirective copyDirective, ProcessedTokensDocument importedDocumentSource, PerfStatsForImportedDocument perfStats)
         {
             CopyDirective = copyDirective;
             SourceDocument = importedDocumentSource;
             HasReplacingDirective = copyDirective.ReplaceOperations.Count > 0;
+            PerfStatsForImportedDocument = perfStats;
         }
 
         /// <summary>
@@ -57,5 +58,10 @@ namespace TypeCobol.Compiler.Preprocessor
                 return sourceIterator;
             }
         }
+
+        /// <summary>
+        /// Performance metrics for compilation documents retrieved in cache
+        /// </summary>
+        public PerfStatsForImportedDocument PerfStatsForImportedDocument { get; private set; }
     }
 }

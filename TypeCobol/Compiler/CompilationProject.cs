@@ -168,15 +168,15 @@ namespace TypeCobol.Compiler
         IDictionary<string, CompilationDocument> importedCompilationDocumentsCache = new Dictionary<string, CompilationDocument>();
 
 
-        public virtual ProcessedTokensDocument GetProcessedTokensDocument(string libraryName, string textName) {
-            return GetProcessedTokensDocument(libraryName, textName, null);
+        public virtual ProcessedTokensDocument GetProcessedTokensDocument(string libraryName, string textName, out PerfStatsForImportedDocument perfStats) {
+            return GetProcessedTokensDocument(libraryName, textName, null, out perfStats);
         }
 
         /// <summary>
         /// Returns a ProcessedTokensDocument already in cache or loads, scans and processes a new CompilationDocument
         /// </summary>
         public virtual ProcessedTokensDocument GetProcessedTokensDocument(string libraryName, [NotNull] string textName,
-            [CanBeNull] MultilineScanState scanState)
+            [CanBeNull] MultilineScanState scanState, out PerfStatsForImportedDocument perfStats)
         {
             string cacheKey = (libraryName == null ? SourceFileProvider.DEFAULT_LIBRARY_NAME : libraryName.ToUpper()) + "." + textName.ToUpper();
             if (scanState != null) {
@@ -185,10 +185,13 @@ namespace TypeCobol.Compiler
                 // NB : the hypothesis here is that we don't need to include more properties of scanState in the cache key, 
                 // because a COPY is always cleanly delimited at CodeElement boundaries.
             }
+
+            perfStats = new PerfStatsForImportedDocument();
             CompilationDocument resultDocument;
             if(importedCompilationDocumentsCache.ContainsKey(cacheKey))
             {
                 resultDocument = importedCompilationDocumentsCache[cacheKey];
+                perfStats.WasRetrievedFromCache = true;
             }
             else
             {
@@ -197,6 +200,9 @@ namespace TypeCobol.Compiler
                 //FileCompiler fileCompiler = new FileCompiler(libraryName, textName, SourceFileProvider, this, ColumnsLayout, CompilationOptions, null, true);
                 fileCompiler.CompileOnce();
                 resultDocument = fileCompiler.CompilationResultsForCopy;
+                perfStats.WasRetrievedFromCache = false;
+                perfStats.SourceFileSearchTime = fileCompiler.SourceFileSearchTime;
+                perfStats.SourceFileLoadTime = fileCompiler.SourceFileLoadTime;
 
                 importedCompilationDocumentsCache[cacheKey] = resultDocument;
             }

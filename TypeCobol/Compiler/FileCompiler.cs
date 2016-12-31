@@ -7,6 +7,7 @@ using TypeCobol.Compiler.File;
 using TypeCobol.Compiler.Preprocessor;
 using TypeCobol.Compiler.Scanner;
 using TypeCobol.Compiler.Text;
+using System.Diagnostics;
 
 namespace TypeCobol.Compiler
 {
@@ -61,6 +62,16 @@ namespace TypeCobol.Compiler
         public CobolFile GeneratedCobolFile { get; private set; }
 
         /// <summary>
+        /// Number of milliseconds to locate the source file in the source library
+        /// </summary>
+        public int SourceFileSearchTime { get; private set; }
+
+        /// <summary>
+        /// Number of milliseconds to load the source file in memory
+        /// </summary>
+        public int SourceFileLoadTime { get; private set; }
+
+        /// <summary>
         /// Load a Cobol source file in memory
         /// </summary>
         public FileCompiler(string libraryName, string textName, SourceFileProvider sourceFileProvider, IProcessedTokensDocumentProvider documentProvider, ColumnsLayout columnsLayout, TypeCobolOptions compilerOptions, CodeModel.SymbolTable customSymbols, bool isCopyFile) :
@@ -95,10 +106,13 @@ namespace TypeCobol.Compiler
             [CanBeNull] MultilineScanState scanState)
         {
             // 1.a Find the Cobol source file
+            var chrono = new Stopwatch();
+            chrono.Start();
             CobolFile sourceFile = null;
             if (textName != null)
-            {
-                if (sourceFileProvider.TryGetFile(libraryName, textName, out sourceFile))
+            {                
+                bool fileFound = sourceFileProvider.TryGetFile(libraryName, textName, out sourceFile);
+                if (fileFound)
                 {
                     CobolFile = sourceFile;
                 }
@@ -112,8 +126,12 @@ namespace TypeCobol.Compiler
             {
                 CobolFile = loadedCobolFile;
             }
+            chrono.Stop();
+            SourceFileSearchTime = (int)chrono.ElapsedMilliseconds;
+            chrono.Reset();
 
             // 2.a Load it in a new text document in memory
+            chrono.Start();
             if (textDocument == null)
             {
                 TextDocument = new ReadOnlyTextDocument(sourceFile.Name, sourceFile.Encoding, columnsLayout, sourceFile.ReadChars());
@@ -131,9 +149,12 @@ namespace TypeCobol.Compiler
             {
                 TextDocument = textDocument;
             }
+            chrono.Stop();
+            SourceFileLoadTime = (int)chrono.ElapsedMilliseconds;
+            chrono.Reset();
 
-			// 3. Prepare the data structures used by the different steps of the compiler
-			if (isCopyFile) {
+            // 3. Prepare the data structures used by the different steps of the compiler
+            if (isCopyFile) {
 				CompilationResultsForCopy = new CompilationDocument(TextDocument.Source, TextDocument.Lines, compilerOptions, documentProvider, scanState);
 				CompilationResultsForCopy.CustomSymbols = customSymbols;
 			} else {

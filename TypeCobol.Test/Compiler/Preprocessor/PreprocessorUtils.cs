@@ -40,7 +40,8 @@ namespace TypeCobol.Test.Compiler.Preprocessor
 
         public static string ProcessCompilerDirectives(string testName)
         {
-            ProcessedTokensDocument processedDoc = DirectivesProject.GetProcessedTokensDocument(null, testName);
+            PerfStatsForImportedDocument perfStats;
+            ProcessedTokensDocument processedDoc = DirectivesProject.GetProcessedTokensDocument(null, testName, out perfStats);
 
             StringBuilder sbResult = new StringBuilder();
             int lineNumber = 1;
@@ -133,7 +134,8 @@ namespace TypeCobol.Test.Compiler.Preprocessor
         }
 
 	public static string ProcessCopyDirectives(string name) {
-		return ProcessTokensDocument(name, CopyProject.GetProcessedTokensDocument(null, name));
+            PerfStatsForImportedDocument perfStats;
+            return ProcessTokensDocument(name, CopyProject.GetProcessedTokensDocument(null, name, out perfStats));
 	}
 
 	public static void CheckWithCopyResultFile(string result, string testName) {
@@ -143,7 +145,8 @@ namespace TypeCobol.Test.Compiler.Preprocessor
 	}
 
 	public static string ProcessReplaceDirectives(string name) {
-		return ProcessTokensDocument(name, ReplaceProject.GetProcessedTokensDocument(null, name));
+            PerfStatsForImportedDocument perfStats;
+            return ProcessTokensDocument(name, ReplaceProject.GetProcessedTokensDocument(null, name, out perfStats));
 	}
 
 	public static void CheckWithReplaceResultFile(string result, string testName) {
