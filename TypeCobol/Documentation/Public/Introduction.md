@@ -27,19 +27,27 @@
 
 The core TypeCobol team originates from a big financial company in which more than 1000 developers are dedicated to maintain and expand a mission critical system built with more than 200 millions lines of IBM Cobol code. This system is not a legacy : several millions of new Cobol lines are added to the system each year to implement new and improved features.
 
-In many big companies like this one, Cobol is still at the heart of the information system and will be for years to come.
+In many big companies like this one, Cobol is still at the heart of the information system and will be for years to come. Cobol systems are very efficient and the underlying hardware platform is constantly improved by IBM, but the productivity of Cobol developers is hindered 
 
 > Why not progressively migrate Cobol programs to a more modern platform ?
 
 The mainframe platform encourages a centralized development model. In the context of a single transaction, all Cobol programs share the same memory space. There is no native concept in the language to enforce encapsulation and isolation between components. Calling and called components are free to read and write any content in their shared memory segment.
 
-This is a big performance and efficiency advantage to process huge amounts of data across a very complex system, but the drawback is that it is almost impossible to isolate a small part of the system to migrate it to another platform. 
+This is a big performance and efficiency advantage to process huge amounts of data across a very complex system, but it makes it almost impossible to isolate a small part of the system to migrate it to another platform. Because the same memory segment is shared from the top to the bottom of the call chain, any kind of change in the list of parameters or data representation impacts all programs at once.
 
-This would also introduce asynchronous external calls inside a system designed from the ground up to run synchronously on a single machine : this proves to be an incredibly challenging and time-intensive task to do manually. Some of the existing features simply can't be reimplemented in a distributed computing model : the latency introduced between the components would make them way too slow with the current design.
+Moving a few programs to another platform would also introduce asynchronous external calls in a system designed from the ground up to run synchronously on a single machine : this proves to be an incredibly challenging and time-intensive task, because it transitively impacts all the call chains leading to these programs.
+
+Some of the existing features simply can't be reimplemented in a distributed computing model : the latency introduced between the components would make them way too slow with the current design.
 
 > How can TypeCobol help with this situation ?
 
-As it would literally cost billions and take years to manually migrate the biggest Cobol systems to a new platform, the only realistic path is to gradually improve the existing Cobol programs. 
+It would literally cost billions, take several years, and involve an unreasonable amount of risk to manually migrate such Cobol systems to a new platform : the only realistic path is to gradually improve the existing Cobol programs.
+* Group Cobol programs into components and enhance them with additional 
+* Define TypeCobol types, functions and interfaces to properly document the data exchanged between components
+* Replace direct Cobol calls (with shared memory) by decoupled TypeCobol service calls
+* 
+
+> The recent versions of IBM Cobol
 
 ## Use cases
 
