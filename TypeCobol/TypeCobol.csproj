@@ -122,6 +122,7 @@
     <Compile Include="Compiler\AntlrUtils\LineAwareParser.cs" />
     <Compile Include="Compiler\AntlrUtils\ParserRuleContextWithDiagnostics.cs" />
     <Compile Include="Compiler\AntlrUtils\ParseTreeUtils.cs" />
+    <Compile Include="Compiler\AntlrUtils\PerfStatsForParserInvocation.cs" />
     <Compile Include="Compiler\AntlrUtils\RuleStackBuilder.cs" />
     <Compile Include="Compiler\AntlrUtils\TextLineCharStream.cs" />
     <Compile Include="Compiler\CodeElements\Entry\DataType.cs" />

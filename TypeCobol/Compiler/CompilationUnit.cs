@@ -25,8 +25,8 @@ namespace TypeCobol.Compiler
             base(textSourceInfo, initialTextLines, compilerOptions, processedTokensDocumentProvider)
         {
             // Initialize performance stats 
-            PerfStatsForCodeElementsParser = new PerfStatsForCompilationStep(CompilationStep.CodeElementsParser);
-            PerfStatsForProgramClassParser = new PerfStatsForCompilationStep(CompilationStep.ProgramClassParser);
+            PerfStatsForCodeElementsParser = new PerfStatsForParsingStep(CompilationStep.CodeElementsParser);
+            PerfStatsForProgramClassParser = new PerfStatsForParsingStep(CompilationStep.ProgramClassParser);
         }
 
         /// <summary>
@@ -62,7 +62,7 @@ namespace TypeCobol.Compiler
                 }
 
                 // Start perf measurement
-                PerfStatsForCodeElementsParser.OnStartRefresh();
+                var perfStatsForParserInvocation = PerfStatsForCodeElementsParser.OnStartRefreshParsingStep();
 
                 // Track all changes applied to the document while updating this snapshot
                 DocumentChangedEvent<ICodeElementsLine> documentChangedEvent = null;
@@ -71,7 +71,7 @@ namespace TypeCobol.Compiler
                 if (scanAllDocumentLines)
                 {
                     // Parse the whole document for the first time
-                    CodeElementsParserStep.ParseDocument(TextSourceInfo, ((ImmutableList<CodeElementsLine>)processedTokensDocument.Lines), CompilerOptions);
+                    CodeElementsParserStep.ParseDocument(TextSourceInfo, ((ImmutableList<CodeElementsLine>)processedTokensDocument.Lines), CompilerOptions, perfStatsForParserInvocation);
 
                     // Create the first code elements document snapshot
                     CodeElementsDocumentSnapshot = new CodeElementsDocument(processedTokensDocument, new DocumentVersion<ICodeElementsLine>(this), ((ImmutableList<CodeElementsLine>)processedTokensDocument.Lines));
@@ -79,7 +79,7 @@ namespace TypeCobol.Compiler
                 else
                 {
                     ImmutableList<CodeElementsLine>.Builder codeElementsDocumentLines = ((ImmutableList<CodeElementsLine>)processedTokensDocument.Lines).ToBuilder();
-                    IList<DocumentChange<ICodeElementsLine>> documentChanges = CodeElementsParserStep.ParseProcessedTokensLinesChanges(TextSourceInfo, codeElementsDocumentLines, processedTokensLineChanges, PrepareDocumentLineForUpdate, CompilerOptions);
+                    IList<DocumentChange<ICodeElementsLine>> documentChanges = CodeElementsParserStep.ParseProcessedTokensLinesChanges(TextSourceInfo, codeElementsDocumentLines, processedTokensLineChanges, PrepareDocumentLineForUpdate, CompilerOptions, perfStatsForParserInvocation);
 
                     // Create a new version of the document to track these changes
                     DocumentVersion<ICodeElementsLine> currentCodeElementsLinesVersion = previousCodeElementsDocument.CurrentVersion;
@@ -95,7 +95,7 @@ namespace TypeCobol.Compiler
                 }
 
                 // Stop perf measurement
-                PerfStatsForCodeElementsParser.OnStopRefresh();
+                PerfStatsForCodeElementsParser.OnStopRefreshParsingStep();
 
                 // Send events to all listeners
                 EventHandler<DocumentChangedEvent<ICodeElementsLine>> codeElementsLinesChanged = CodeElementsLinesChanged; // avoid race condition
@@ -120,7 +120,7 @@ namespace TypeCobol.Compiler
         /// <summary>
         /// Performance stats for the RefreshCodeElementsDocumentSnapshot method
         /// </summary>
-        public PerfStatsForCompilationStep PerfStatsForCodeElementsParser { get; private set; }
+        public PerfStatsForParsingStep PerfStatsForCodeElementsParser { get; private set; }
 
         /// <summary>
         /// Creates a new snapshot of the document viewed as complete Cobol Program or Class.
@@ -140,14 +140,14 @@ namespace TypeCobol.Compiler
                 if (ProgramClassDocumentSnapshot == null || ProgramClassDocumentSnapshot.PreviousStepSnapshot.CurrentVersion != codeElementsDocument.CurrentVersion)
                 {
                     // Start perf measurement
-                    PerfStatsForProgramClassParser.OnStartRefresh();
+                    var perfStatsForParserInvocation = PerfStatsForProgramClassParser.OnStartRefreshParsingStep();
 
                     // Program and Class parsing is not incremental : the objects are rebuilt each time this method is called
                     Program newProgram;
                     Class newClass;
                     IList<ParserDiagnostic> newDiagnostics;
                     //TODO cast to ImmutableList<CodeElementsLine> sometimes fails here
-                    ProgramClassParserStep.ParseProgramOrClass(TextSourceInfo, ((ImmutableList<CodeElementsLine>)codeElementsDocument.Lines), CompilerOptions, CustomSymbols, out newProgram, out newClass, out newDiagnostics);
+                    ProgramClassParserStep.ParseProgramOrClass(TextSourceInfo, ((ImmutableList<CodeElementsLine>)codeElementsDocument.Lines), CompilerOptions, CustomSymbols, perfStatsForParserInvocation, out newProgram, out newClass, out newDiagnostics);
 
                     // Capture the result of the parse in a new snapshot
                     ProgramClassDocumentSnapshot = new ProgramClassDocument(
@@ -156,7 +156,7 @@ namespace TypeCobol.Compiler
                     snapshotWasUpdated = true;
 
                     // Stop perf measurement
-                    PerfStatsForProgramClassParser.OnStopRefresh();
+                    PerfStatsForProgramClassParser.OnStopRefreshParsingStep();
                 }
             }
 
@@ -201,7 +201,7 @@ namespace TypeCobol.Compiler
         /// <summary>
         /// Performance stats for the RefreshProgramClassDocumentSnapshot method
         /// </summary>
-        public PerfStatsForCompilationStep PerfStatsForProgramClassParser { get; private set; }
+        public PerfStatsForParsingStep PerfStatsForProgramClassParser { get; private set; }
 
         #region Thread ownership and synchronization
 

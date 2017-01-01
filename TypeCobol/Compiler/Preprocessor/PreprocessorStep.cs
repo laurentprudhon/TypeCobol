@@ -21,15 +21,15 @@ namespace TypeCobol.Compiler.Preprocessor
         /// <summary>
         /// Initial preprocessing of a complete document
         /// </summary>
-        internal static void ProcessDocument(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<ProcessedTokensLine> documentLines, TypeCobolOptions compilerOptions, IProcessedTokensDocumentProvider processedTokensDocumentProvider)
+        internal static void ProcessDocument(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<ProcessedTokensLine> documentLines, TypeCobolOptions compilerOptions, IProcessedTokensDocumentProvider processedTokensDocumentProvider, PerfStatsForParserInvocation perfStatsForParserInvocation)
         {
-            ProcessTokensLinesChanges(textSourceInfo, documentLines, null, null, compilerOptions, processedTokensDocumentProvider);
+            ProcessTokensLinesChanges(textSourceInfo, documentLines, null, null, compilerOptions, processedTokensDocumentProvider, perfStatsForParserInvocation);
         }
 
         /// <summary>
         /// Incremental preprocessing of a set of tokens lines changes
         /// </summary>
-        internal static IList<DocumentChange<IProcessedTokensLine>> ProcessTokensLinesChanges(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<ProcessedTokensLine> documentLines, IList<DocumentChange<ITokensLine>> tokensLinesChanges, PrepareDocumentLineForUpdate prepareDocumentLineForUpdate, TypeCobolOptions compilerOptions, IProcessedTokensDocumentProvider processedTokensDocumentProvider)
+        internal static IList<DocumentChange<IProcessedTokensLine>> ProcessTokensLinesChanges(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<ProcessedTokensLine> documentLines, IList<DocumentChange<ITokensLine>> tokensLinesChanges, PrepareDocumentLineForUpdate prepareDocumentLineForUpdate, TypeCobolOptions compilerOptions, IProcessedTokensDocumentProvider processedTokensDocumentProvider, PerfStatsForParserInvocation perfStatsForParserInvocation)
         {
             // Collect all changes applied to the processed tokens lines during the incremental scan
             IList<DocumentChange<IProcessedTokensLine>> processedTokensLinesChanges = new List<DocumentChange<IProcessedTokensLine>>();
@@ -116,13 +116,16 @@ namespace TypeCobol.Compiler.Preprocessor
                 compilerDirectiveErrorStrategy.Reset(directivesParser);
 
                 // 3. Try to parse a compiler directive starting with the current token
+                perfStatsForParserInvocation.OnStartAntlrParsing();
                 CobolCompilerDirectivesParser.CompilerDirectingStatementContext directiveParseTree = directivesParser.compilerDirectingStatement();
+                perfStatsForParserInvocation.OnStopAntlrParsing(0, 0);
 
                 // 4. Visit the parse tree to build a first class object representing the compiler directive
+                perfStatsForParserInvocation.OnStartTreeBuilding();
                 walker.Walk(directiveBuilder, directiveParseTree);
                 CompilerDirective compilerDirective = directiveBuilder.CompilerDirective;
                 bool errorFoundWhileParsingDirective = compilerDirective == null || compilerDirective.Diagnostics != null || directiveParseTree.Diagnostics != null;
-
+                
                 // 5. Get all tokens consumed while parsing the compiler directive
                 //    and partition them line by line 
                 Token startToken = (Token)directiveParseTree.Start;
@@ -225,6 +228,7 @@ namespace TypeCobol.Compiler.Preprocessor
                     parsedLine.PreprocessingState = ProcessedTokensLine.PreprocessorState.Ready;
                 }
             }
+            perfStatsForParserInvocation.OnStopTreeBuilding();
 
             // --- COPY IMPORT PHASE : Process COPY (REPLACING) directives ---
 

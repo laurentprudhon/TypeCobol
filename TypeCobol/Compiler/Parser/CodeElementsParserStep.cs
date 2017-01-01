@@ -23,9 +23,9 @@ namespace TypeCobol.Compiler.Parser
         /// <summary>
         /// Initial parsing of a complete document
         /// </summary>
-        internal static void ParseDocument(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> documentLines, TypeCobolOptions compilerOptions)
+        internal static void ParseDocument(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> documentLines, TypeCobolOptions compilerOptions, PerfStatsForParserInvocation perfStatsForParserInvocation)
         {
-            ParseProcessedTokensLinesChanges(textSourceInfo, documentLines, null, null, compilerOptions);
+            ParseProcessedTokensLinesChanges(textSourceInfo, documentLines, null, null, compilerOptions, perfStatsForParserInvocation);
         }
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace TypeCobol.Compiler.Parser
         /// <summary>
         /// Incremental parsing of a set of processed tokens lines changes
         /// </summary>
-        internal static IList<DocumentChange<ICodeElementsLine>> ParseProcessedTokensLinesChanges(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> documentLines, IList<DocumentChange<IProcessedTokensLine>> processedTokensLinesChanges, PrepareDocumentLineForUpdate prepareDocumentLineForUpdate, TypeCobolOptions compilerOptions)
+        internal static IList<DocumentChange<ICodeElementsLine>> ParseProcessedTokensLinesChanges(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> documentLines, IList<DocumentChange<IProcessedTokensLine>> processedTokensLinesChanges, PrepareDocumentLineForUpdate prepareDocumentLineForUpdate, TypeCobolOptions compilerOptions, PerfStatsForParserInvocation perfStatsForParserInvocation)
         {
             // Collect all changes applied to the processed tokens lines during the incremental scan
             IList<DocumentChange<ICodeElementsLine>> codeElementsLinesChanges = new List<DocumentChange<ICodeElementsLine>>();
@@ -161,9 +161,13 @@ namespace TypeCobol.Compiler.Parser
                 // Try to parse code elements :
                 // - starting with the current parse section Start token
                 // - ending with the current parse section Stop token
+                perfStatsForParserInvocation.OnStartAntlrParsing();
                 if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.BeginParsingSection();
                 var codeElementsParseTree = cobolParser.cobolCodeElements();
                 if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingSection(codeElementsParseTree.codeElement()!=null ? codeElementsParseTree.codeElement().Length : 0);
+                perfStatsForParserInvocation.OnStopAntlrParsing(
+                    AntlrPerformanceProfiler!=null?(int)AntlrPerformanceProfiler.CurrentFileInfo.DecisionTimeMs:0,
+                    AntlrPerformanceProfiler!=null?AntlrPerformanceProfiler.CurrentFileInfo.RuleInvocations.Sum():0);
 
                 // If the parse tree is not empty
                 if (codeElementsParseTree.codeElement() != null && codeElementsParseTree.codeElement().Length > 0)
@@ -182,6 +186,7 @@ namespace TypeCobol.Compiler.Parser
                         codeElementsLinesChanges.Add(new DocumentChange<ICodeElementsLine>(DocumentChangeType.LineUpdated, codeElementsLine.InitialLineIndex, codeElementsLine));
 
                         // Visit the parse tree to build a first class object representing the code elements
+                        perfStatsForParserInvocation.OnStartTreeBuilding();
                         try { walker.Walk(codeElementBuilder, codeElementParseTree); }
                         catch (Exception ex)
                         {
@@ -241,6 +246,7 @@ namespace TypeCobol.Compiler.Parser
                         }
                     }
                 }
+                perfStatsForParserInvocation.OnStopTreeBuilding();
 
                 // In case of incremental parsing, directly jump to next parse section in the token stream
                 // Else, simply start parsing the next CodeElement beginning with the next token

@@ -18,7 +18,7 @@ namespace TypeCobol.Compiler.Parser
     /// </summary>
     static class ProgramClassParserStep
     {
-        public static void ParseProgramOrClass(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> codeElementsLines, TypeCobolOptions compilerOptions, SymbolTable customSymbols, out Program newProgram, out Class newClass, out IList<ParserDiagnostic> diagnostics)
+        public static void ParseProgramOrClass(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> codeElementsLines, TypeCobolOptions compilerOptions, SymbolTable customSymbols, PerfStatsForParserInvocation perfStatsForParserInvocation, out Program newProgram, out Class newClass, out IList<ParserDiagnostic> diagnostics)
         {
             // Create an Antlr compatible token source on top a the token iterator
             CodeElementsLinesTokenSource tokenSource = new CodeElementsLinesTokenSource(
@@ -37,7 +37,9 @@ namespace TypeCobol.Compiler.Parser
             cobolParser.AddErrorListener(errorListener);
 
             // Try to parse a Cobol program or class
+            perfStatsForParserInvocation.OnStartAntlrParsing();
             ProgramClassParser.CobolCompilationUnitContext programClassParseTree = cobolParser.cobolCompilationUnit();
+            perfStatsForParserInvocation.OnStopAntlrParsing(0, 0);
 
             // Visit the parse tree to build a first class object representing a Cobol program or class
             ParseTreeWalker walker = new ParseTreeWalker();
@@ -46,13 +48,16 @@ namespace TypeCobol.Compiler.Parser
             programClassBuilder.Dispatcher = new NodeDispatcher();
             programClassBuilder.Dispatcher.CreateListeners();
 
+            perfStatsForParserInvocation.OnStartTreeBuilding();
             ParserDiagnostic programClassBuilderError = null;
-            try { walker.Walk(programClassBuilder, programClassParseTree); }
+            try
+            { walker.Walk(programClassBuilder, programClassParseTree); }
             catch (Exception ex)
             {
                 var code = Diagnostics.MessageCode.ImplementationError;
                 programClassBuilderError = new ParserDiagnostic(ex.ToString(), null, null, code);
             }
+            perfStatsForParserInvocation.OnStopTreeBuilding();
 
             // Register compiler results
             newProgram = programClassBuilder.Program;
@@ -64,7 +69,5 @@ namespace TypeCobol.Compiler.Parser
                 diagnostics.Add(programClassBuilderError);
             }
         }
-
-
     }
 }

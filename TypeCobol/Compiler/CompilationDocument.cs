@@ -10,6 +10,7 @@ using TypeCobol.Compiler.Parser;
 using TypeCobol.Compiler.Preprocessor;
 using TypeCobol.Compiler.Scanner;
 using TypeCobol.Compiler.Text;
+using TypeCobol.Compiler.AntlrUtils;
 
 namespace TypeCobol.Compiler
 {
@@ -93,6 +94,33 @@ namespace TypeCobol.Compiler
             }
         }
 
+        public class PerfStatsForParsingStep : PerfStatsForCompilationStep
+        {
+            public PerfStatsForParsingStep(CompilationStep compilationStep) : base(compilationStep)
+            { }
+                       
+            public PerfStatsForParserInvocation FirstParsingTime { get; private set; }
+            public PerfStatsForParserInvocation LastParsingTime { get; private set; }
+            public PerfStatsForParserInvocation TotalParsingTime { get; private set; }
+
+            public PerfStatsForParserInvocation OnStartRefreshParsingStep()
+            {
+                LastParsingTime = new PerfStatsForParserInvocation();
+                OnStartRefresh();
+                return LastParsingTime;
+            }
+
+            public void OnStopRefreshParsingStep()
+            {
+                OnStopRefresh();
+                if(FirstParsingTime == null)
+                {
+                    FirstParsingTime = LastParsingTime;
+                    TotalParsingTime = new PerfStatsForParserInvocation();
+                }
+                TotalParsingTime.Add(LastParsingTime);
+            }            
+        }
 
         // --- Initialization ---
 
@@ -131,7 +159,7 @@ namespace TypeCobol.Compiler
             // Initialize performance stats 
             PerfStatsForText = new PerfStatsForCompilationStep(CompilationStep.Text);
             PerfStatsForScanner = new PerfStatsForCompilationStep(CompilationStep.Scanner);
-            PerfStatsForPreprocessor = new PerfStatsForCompilationStep(CompilationStep.Preprocessor);
+            PerfStatsForPreprocessor = new PerfStatsForParsingStep(CompilationStep.Preprocessor);
 
             initialScanStateForCopy = scanState;
         }
@@ -516,7 +544,7 @@ namespace TypeCobol.Compiler
                 }
 
                 // Start perf measurement
-                PerfStatsForPreprocessor.OnStartRefresh();
+                var perfStatsForParserInvocation = PerfStatsForPreprocessor.OnStartRefreshParsingStep();
 
                 // Track all changes applied to the document while updating this snapshot
                 DocumentChangedEvent<IProcessedTokensLine> documentChangedEvent = null;
@@ -525,7 +553,7 @@ namespace TypeCobol.Compiler
                 if (scanAllDocumentLines)
                 {
                     // Process all lines of the document for the first time
-                    PreprocessorStep.ProcessDocument(TextSourceInfo, ((ImmutableList<CodeElementsLine>)tokensDocument.Lines), CompilerOptions, processedTokensDocumentProvider);
+                    PreprocessorStep.ProcessDocument(TextSourceInfo, ((ImmutableList<CodeElementsLine>)tokensDocument.Lines), CompilerOptions, processedTokensDocumentProvider, perfStatsForParserInvocation);
 
                     // Create the first processed tokens document snapshot
                     ProcessedTokensDocumentSnapshot = new ProcessedTokensDocument(tokensDocument, new DocumentVersion<IProcessedTokensLine>(this), ((ImmutableList<CodeElementsLine>)tokensDocument.Lines));
@@ -533,7 +561,7 @@ namespace TypeCobol.Compiler
                 else
                 {
                     ImmutableList<CodeElementsLine>.Builder processedTokensDocumentLines = ((ImmutableList<CodeElementsLine>)tokensDocument.Lines).ToBuilder();
-                    IList<DocumentChange<IProcessedTokensLine>> documentChanges = PreprocessorStep.ProcessTokensLinesChanges(TextSourceInfo, processedTokensDocumentLines, tokensLineChanges, PrepareDocumentLineForUpdate, CompilerOptions, processedTokensDocumentProvider);
+                    IList<DocumentChange<IProcessedTokensLine>> documentChanges = PreprocessorStep.ProcessTokensLinesChanges(TextSourceInfo, processedTokensDocumentLines, tokensLineChanges, PrepareDocumentLineForUpdate, CompilerOptions, processedTokensDocumentProvider, perfStatsForParserInvocation);
 
                     // Create a new version of the document to track these changes
                     DocumentVersion<IProcessedTokensLine> currentProcessedTokensLineVersion = previousProcessedTokensDocument.CurrentVersion;
@@ -549,7 +577,7 @@ namespace TypeCobol.Compiler
                 }
 
                 // Stop perf measurement
-                PerfStatsForPreprocessor.OnStopRefresh();
+                PerfStatsForPreprocessor.OnStopRefreshParsingStep();
 
                 // Send events to all listeners
                 EventHandler<DocumentChangedEvent<IProcessedTokensLine>> processedTokensLinesChangedEventsSource = ProcessedTokensLinesChangedEventsSource; // avoid race condition
@@ -574,7 +602,7 @@ namespace TypeCobol.Compiler
         /// <summary>
         /// Performance stats for the RefreshProcessedTokensDocumentSnapshot method
         /// </summary>
-        public PerfStatsForCompilationStep PerfStatsForPreprocessor { get; private set; }
+        public PerfStatsForParsingStep PerfStatsForPreprocessor { get; private set; }
 
         #region Thread ownership and synchronization
         // Inspired from ICSharpCode.AvalonEdit.Document.TextDocument
