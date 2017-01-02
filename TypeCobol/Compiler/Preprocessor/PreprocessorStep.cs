@@ -26,6 +26,9 @@ namespace TypeCobol.Compiler.Preprocessor
             ProcessTokensLinesChanges(textSourceInfo, documentLines, null, null, compilerOptions, processedTokensDocumentProvider, perfStatsForParserInvocation);
         }
 
+        // When not null, optionnaly used to gather Antlr performance profiling information
+        public static AntlrPerformanceProfiler AntlrPerformanceProfiler;
+
         /// <summary>
         /// Incremental preprocessing of a set of tokens lines changes
         /// </summary>
@@ -75,6 +78,18 @@ namespace TypeCobol.Compiler.Preprocessor
             // Init a compiler directive parser
             CommonTokenStream tokenStream = new TokensLinesTokenStream(tokenSource, Token.CHANNEL_SourceTokens);
             CobolCompilerDirectivesParser directivesParser = new CobolCompilerDirectivesParser(tokenStream);
+
+            // Optionnaly activate Antlr Parser performance profiling
+            // WARNING : use this in a single-treaded context only (uses static field)       
+            if (AntlrPerformanceProfiler == null && perfStatsForParserInvocation.ActivateDetailedAntlrPofiling) AntlrPerformanceProfiler = new AntlrPerformanceProfiler(directivesParser);
+            if (AntlrPerformanceProfiler != null)
+            {
+                // Replace the generated parser by a subclass which traces all rules invocations
+                directivesParser = new CobolCompilerDirectivesTracingParser(tokenStream);                
+                AntlrPerformanceProfiler.BeginParsingFile(textSourceInfo, null);
+            }
+
+            // Compiler directive parser uses a specific error recovery strategy
             IAntlrErrorStrategy compilerDirectiveErrorStrategy = new CompilerDirectiveErrorStrategy();
             directivesParser.ErrorHandler = compilerDirectiveErrorStrategy;
 
@@ -117,8 +132,12 @@ namespace TypeCobol.Compiler.Preprocessor
 
                 // 3. Try to parse a compiler directive starting with the current token
                 perfStatsForParserInvocation.OnStartAntlrParsing();
+                if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.BeginParsingSection();
                 CobolCompilerDirectivesParser.CompilerDirectingStatementContext directiveParseTree = directivesParser.compilerDirectingStatement();
-                perfStatsForParserInvocation.OnStopAntlrParsing(0, 0);
+                if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingSection(directiveParseTree.ChildCount);
+                perfStatsForParserInvocation.OnStopAntlrParsing(
+                    AntlrPerformanceProfiler != null ? (int)AntlrPerformanceProfiler.CurrentFileInfo.DecisionTimeMs : 0,
+                    AntlrPerformanceProfiler != null ? AntlrPerformanceProfiler.CurrentFileInfo.RuleInvocations.Sum() : 0);
 
                 // 4. Visit the parse tree to build a first class object representing the compiler directive
                 perfStatsForParserInvocation.OnStartTreeBuilding();
@@ -206,6 +225,8 @@ namespace TypeCobol.Compiler.Preprocessor
                     }
                 }
             }
+
+            if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingFile(directivesParser.ParseInfo.DecisionInfo, (int)(directivesParser.ParseInfo.GetTotalTimeInPrediction() / 1000000));
 
             // 8. Advance the state off all ProcessedTokensLines : 
             // NeedsCompilerDirectiveParsing => NeedsCopyDirectiveProcessing if it contains a COPY directive

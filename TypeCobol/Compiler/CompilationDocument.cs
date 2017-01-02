@@ -103,9 +103,15 @@ namespace TypeCobol.Compiler
             public PerfStatsForParserInvocation LastParsingTime { get; private set; }
             public PerfStatsForParserInvocation TotalParsingTime { get; private set; }
 
+            /// <summary>
+            /// Set to true to activate very detailed Anltr profiling statistics, which can then be accessed 
+            /// through XxxParserStep.AntlrPerformanceProfiler static properties
+            /// </summary>
+            public bool ActivateDetailedAntlrPofiling { get; set; }
+
             public PerfStatsForParserInvocation OnStartRefreshParsingStep()
             {
-                LastParsingTime = new PerfStatsForParserInvocation();
+                LastParsingTime = new PerfStatsForParserInvocation(ActivateDetailedAntlrPofiling);
                 OnStartRefresh();
                 return LastParsingTime;
             }
@@ -116,7 +122,7 @@ namespace TypeCobol.Compiler
                 if(FirstParsingTime == null)
                 {
                     FirstParsingTime = LastParsingTime;
-                    TotalParsingTime = new PerfStatsForParserInvocation();
+                    TotalParsingTime = new PerfStatsForParserInvocation(ActivateDetailedAntlrPofiling);
                 }
                 TotalParsingTime.Add(LastParsingTime);
             }            

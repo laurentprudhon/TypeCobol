@@ -2,6 +2,7 @@
 using Antlr4.Runtime.Tree;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TypeCobol.Compiler.AntlrUtils;
 using TypeCobol.Compiler.CodeModel;
 using TypeCobol.Compiler.Concurrency;
@@ -18,6 +19,9 @@ namespace TypeCobol.Compiler.Parser
     /// </summary>
     static class ProgramClassParserStep
     {
+        // When not null, optionnaly used to gather Antlr performance profiling information
+        public static AntlrPerformanceProfiler AntlrPerformanceProfiler;
+
         public static void ParseProgramOrClass(TextSourceInfo textSourceInfo, ISearchableReadOnlyList<CodeElementsLine> codeElementsLines, TypeCobolOptions compilerOptions, SymbolTable customSymbols, PerfStatsForParserInvocation perfStatsForParserInvocation, out Program newProgram, out Class newClass, out IList<ParserDiagnostic> diagnostics)
         {
             // Create an Antlr compatible token source on top a the token iterator
@@ -28,8 +32,16 @@ namespace TypeCobol.Compiler.Parser
             // Init parser
             ITokenStream tokenStream = new TokensLinesTokenStream(tokenSource, Token.CHANNEL_SourceTokens);
             ProgramClassParser cobolParser = new ProgramClassParser(tokenStream);
-            // -> activate full ambiguities detection
-            //parser.Interpreter.PredictionMode = PredictionMode.LlExactAmbigDetection; 
+
+            // Optionnaly activate Antlr Parser performance profiling
+            // WARNING : use this in a single-treaded context only (uses static field)  
+            if (AntlrPerformanceProfiler == null && perfStatsForParserInvocation.ActivateDetailedAntlrPofiling) AntlrPerformanceProfiler = new AntlrPerformanceProfiler(cobolParser);
+            if (AntlrPerformanceProfiler != null)
+            {
+                // Replace the generated parser by a subclass which traces all rules invocations
+                cobolParser = new ProgramClassTracingParser(tokenStream);
+                AntlrPerformanceProfiler.BeginParsingFile(textSourceInfo, null);
+            }
 
             // Register all parse errors in a list in memory
             ParserDiagnosticErrorListener errorListener = new ParserDiagnosticErrorListener();
@@ -38,8 +50,14 @@ namespace TypeCobol.Compiler.Parser
 
             // Try to parse a Cobol program or class
             perfStatsForParserInvocation.OnStartAntlrParsing();
+            if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.BeginParsingSection();
             ProgramClassParser.CobolCompilationUnitContext programClassParseTree = cobolParser.cobolCompilationUnit();
-            perfStatsForParserInvocation.OnStopAntlrParsing(0, 0);
+            if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingSection(programClassParseTree.ChildCount);
+            perfStatsForParserInvocation.OnStopAntlrParsing(
+                AntlrPerformanceProfiler != null ? (int)AntlrPerformanceProfiler.CurrentFileInfo.DecisionTimeMs : 0,
+                AntlrPerformanceProfiler != null ? AntlrPerformanceProfiler.CurrentFileInfo.RuleInvocations.Sum() : 0);
+
+            if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingFile(cobolParser.ParseInfo.DecisionInfo, (int)(cobolParser.ParseInfo.GetTotalTimeInPrediction() / 1000000));
 
             // Visit the parse tree to build a first class object representing a Cobol program or class
             ParseTreeWalker walker = new ParseTreeWalker();

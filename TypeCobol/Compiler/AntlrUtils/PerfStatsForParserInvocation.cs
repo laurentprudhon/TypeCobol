@@ -5,6 +5,17 @@ namespace TypeCobol.Compiler.AntlrUtils
 {
     public class PerfStatsForParserInvocation
     {
+        public PerfStatsForParserInvocation(bool activateDetailedAntlrPofiling)
+        {
+            ActivateDetailedAntlrPofiling = activateDetailedAntlrPofiling;
+        }
+
+        /// <summary>
+        /// Set to true to activate very detailed Anltr profiling statistics, which can then be accessed 
+        /// through XxxParserStep.AntlrPerformanceProfiler static properties
+        /// </summary>
+        public bool ActivateDetailedAntlrPofiling { get; private set; }
+
         public int AntlrParsingTime { get; set; }
 
         // Details of Antlr parsing time
@@ -28,6 +39,8 @@ namespace TypeCobol.Compiler.AntlrUtils
             DecisionTimeMs += decisionTimeMs;
             RuleInvocationsCount += ruleInvocationsCount;
         }
+
+
 
         public void OnStartTreeBuilding()
         {

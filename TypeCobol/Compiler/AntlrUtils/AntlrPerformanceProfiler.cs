@@ -96,15 +96,19 @@ namespace TypeCobol.Compiler.AntlrUtils
         public void BeginParsingFile(TextSourceInfo textSourceInfo, ITokensLinesIterator tokensCountIterator)
         {            
             CurrentFileInfo = new ParsedFileInfo(textSourceInfo.Name, parserRulesCount, parserDecisionsCount);
-            ITokensLine lastLine = null;
-            Token token = null;
-            while ((token = tokensCountIterator.NextToken()) != Token.END_OF_FILE)
+            // Only for CodeElementsParser
+            if (tokensCountIterator != null)
             {
-                CurrentFileInfo.TokensCount++;
-                if (token.TokensLine != lastLine)
+                ITokensLine lastLine = null;
+                Token token = null;
+                while ((token = tokensCountIterator.NextToken()) != Token.END_OF_FILE)
                 {
-                    CurrentFileInfo.LinesCount++;
-                    lastLine = token.TokensLine;
+                    CurrentFileInfo.TokensCount++;
+                    if (token.TokensLine != lastLine)
+                    {
+                        CurrentFileInfo.LinesCount++;
+                        lastLine = token.TokensLine;
+                    }
                 }
             }
         }

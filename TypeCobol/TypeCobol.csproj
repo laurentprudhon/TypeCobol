@@ -155,6 +155,7 @@
     <Compile Include="Compiler\Parser\CodeElementBuilder\CobolWordsBuilder.cs" />
     <Compile Include="Compiler\Nodes\*.cs" />
     <Compile Include="Compiler\Parser\CodeElementDispatcher.cs" />
+    <Compile Include="Compiler\Parser\ProgramClassTracingParser.cs" />
     <Compile Include="Compiler\Parser\ProgramClassDocument.cs" />
     <Compile Include="Compiler\Parser\CodeElementsLinesTokenSource.cs" />
     <Compile Include="Compiler\AntlrUtils\TokensLinesTokenSource.cs" />
@@ -312,6 +313,7 @@
     <Compile Include="Compiler\Preprocessor\PreprocessorStep.cs" />
     <Compile Include="Compiler\Preprocessor\ProcessedTokensDocument.cs" />
     <Compile Include="Compiler\Preprocessor\ProcessedTokensLine.cs" />
+    <Compile Include="Compiler\Preprocessor\CobolCompilerDirectivesTracingParser.cs" />
     <Compile Include="Compiler\Preprocessor\ReplacedToken.cs" />
     <Compile Include="Compiler\Preprocessor\ReplaceTokensLinesIterator.cs" />
     <Compile Include="Compiler\Scanner\ITokensLine.cs" />

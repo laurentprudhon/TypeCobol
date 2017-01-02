@@ -108,9 +108,8 @@ namespace TypeCobol.Compiler.Parser
             CodeElementsParser cobolParser = new CodeElementsParser(tokenStream);
             
             // Optionnaly activate Antlr Parser performance profiling
-            // WARNING : use this in a single-treaded context only (uses static field)          
-            // => uncomment one line below to activate Antlr profiling
-            if (AntlrPerformanceProfiler == null) AntlrPerformanceProfiler = new AntlrPerformanceProfiler(cobolParser);
+            // WARNING : use this in a single-treaded context only (uses static field)     
+            if (AntlrPerformanceProfiler == null && perfStatsForParserInvocation.ActivateDetailedAntlrPofiling) AntlrPerformanceProfiler = new AntlrPerformanceProfiler(cobolParser);
             if (AntlrPerformanceProfiler != null)
             {
                 // Replace the generated parser by a subclass which traces all rules invocations
@@ -164,7 +163,7 @@ namespace TypeCobol.Compiler.Parser
                 perfStatsForParserInvocation.OnStartAntlrParsing();
                 if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.BeginParsingSection();
                 var codeElementsParseTree = cobolParser.cobolCodeElements();
-                if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingSection(codeElementsParseTree.codeElement()!=null ? codeElementsParseTree.codeElement().Length : 0);
+                if (AntlrPerformanceProfiler != null) AntlrPerformanceProfiler.EndParsingSection(codeElementsParseTree.ChildCount);
                 perfStatsForParserInvocation.OnStopAntlrParsing(
                     AntlrPerformanceProfiler!=null?(int)AntlrPerformanceProfiler.CurrentFileInfo.DecisionTimeMs:0,
                     AntlrPerformanceProfiler!=null?AntlrPerformanceProfiler.CurrentFileInfo.RuleInvocations.Sum():0);
